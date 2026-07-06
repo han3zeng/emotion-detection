@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
+# Default settings is in config file
 from app.config import Settings, get_settings
 from app.errors import AppError, register_exception_handlers
 from app.logging_utils import RequestLogMiddleware, configure_logging
@@ -13,6 +14,8 @@ from app.schemas import EmotionRequest, EmotionResponse
 logger = logging.getLogger(__name__)
 
 
+# The code before yield will be executed before application starts.
+# The code after yield will be executed after applications finishes.
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings: Settings = app.state.settings

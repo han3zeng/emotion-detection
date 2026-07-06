@@ -35,18 +35,27 @@ url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
 [tool.uv.sources]
+# macOS local dev  → normal torch
+# Linux Docker/CI → CPU-only torch
+# Cloud Run usually dose not use GPU, so CUDA pytorch is not necessary for production
 torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
 
 [tool.pytest.ini_options]
+# https://docs.pytest.org/en/stable/example/markers.html
 markers = [
     "integration: loads the real model (slow, downloads ~1.1GB on first run)",
 ]
+# addopts set the default operations for `pytest` command
 # Unit tests only by default; run `pytest -m integration` for the real-model test.
 addopts = "-m 'not integration'"
 
 [tool.ruff]
+# Ruff: python linter and formatter
+# max length of single line
 line-length = 100
+# Tells Ruff that your project targets Python 3.12.0
 target-version = "py312"
 
 [tool.ruff.lint]
+#  chooses which types of code flaws Ruff should watch out for
 select = ["E", "F", "W", "I", "UP", "B"]

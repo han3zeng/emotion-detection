@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+# Load env variables automatically, in this project the settings load docker envs.
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,6 +14,7 @@ class Settings(BaseSettings):
     model_revision: str = "2c04ce86de44d232f0fbe31413868eb31d791aea"
     # When set (e.g. in the Docker image), load the model from this local
     # directory instead of downloading from the HuggingFace Hub.
+    # Load the string from APP_MODEL_DIR in Dockerfile and overwrite None
     model_dir: str | None = None
     max_model_tokens: int = 512
     # Tests disable this and inject a fake classifier instead.
@@ -21,7 +23,8 @@ class Settings(BaseSettings):
     cors_allow_origins: str = ""
     log_level: str = "INFO"
 
-    @property
+    # @property let you write settings.cors_origins instead of settings.cors_origins()
+    @property 
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.cors_allow_origins.split(",") if o.strip()]
 
