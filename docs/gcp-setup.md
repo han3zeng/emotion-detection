@@ -17,6 +17,7 @@ Set them as shell variables so you can paste the commands as-is:
 ```bash
 export PROJECT_ID="your-project-id"
 export REGION="asia-east1"
+export GW_REGION="asia-northeast1"
 export GITHUB_REPO="han3zeng/emotion-detection"
 export PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
 gcloud config set project "$PROJECT_ID"
@@ -219,6 +220,7 @@ gcloud run services update emotion-api --region "$REGION" \
 Let the gateway's service account invoke the private Cloud Run service:
 
 ```bash
+# Updates the security policy (IAM) for the Cloud Run service named emotion-api
 gcloud run services add-iam-policy-binding emotion-api \
   --region "$REGION" \
   --member="serviceAccount:$GATEWAY_SA" \
@@ -229,26 +231,33 @@ Create the API, then a config from `gateway/openapi.yaml` (substituting the
 real Cloud Run URL first):
 
 ```bash
+# Creates a new API Gateway container named emotion-api
+# It is a logical container used for configuration management.
+# https://console.cloud.google.com/api-gateway
 gcloud api-gateway apis create emotion-api
 
 sed "s|CLOUD_RUN_URL|$RUN_URL|g" gateway/openapi.yaml > /tmp/openapi-resolved.yaml
 
+# Uploads local OpenAPI yaml file and registers it as a specific blueprint version (emotion-config-v1) inside your GCP project.
 gcloud api-gateway api-configs create emotion-config-v1 \
   --api=emotion-api \
   --openapi-spec=/tmp/openapi-resolved.yaml \
   --backend-auth-service-account="$GATEWAY_SA"
 
+# Creates the actual, live internet endpoint
+# This is the actual public-facing proxy that takes live internet traffic and routes it to the Cloud Run.
+# There is no asia-east available
 gcloud api-gateway gateways create emotion-gateway \
   --api=emotion-api \
   --api-config=emotion-config-v1 \
-  --location="$REGION"
+  --location="$GW_REGION"
 ```
 
 Get the gateway hostname:
 
 ```bash
 export GATEWAY_HOST=$(gcloud api-gateway gateways describe emotion-gateway \
-  --location="$REGION" --format='value(defaultHostname)')
+  --location="$GW_REGION" --format='value(defaultHostname)')
 echo "https://$GATEWAY_HOST"
 ```
 
@@ -261,11 +270,13 @@ The gateway created a "managed service". Enable it (required before API keys
 work against it), then create a key restricted to *only* that service:
 
 ```bash
+# MANAGED_SERVICE is the ID for emotion-api gateway service for registering in API registry
 export MANAGED_SERVICE=$(gcloud api-gateway apis describe emotion-api \
   --format='value(managedService)')
 
 gcloud services enable "$MANAGED_SERVICE"
 
+# Create an api-keys only consume MANAGED_SERVICE
 gcloud services api-keys create \
   --display-name="emotion demo frontend" \
   --api-target="service=$MANAGED_SERVICE"
@@ -277,6 +288,15 @@ against any other Google API.
 
 The 60 requests/minute quota is already defined in `gateway/openapi.yaml`
 (`x-google-management`), so there's nothing extra to configure.
+
+
+```bash
+# List all created api-keys
+gcloud services api-keys list
+# Get the key string based on the resource name of the key
+gcloud services api-keys get-key-string "$name" 
+
+```
 
 ## 8. Test end-to-end
 
